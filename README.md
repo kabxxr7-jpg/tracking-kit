@@ -1,6 +1,6 @@
 # tracking-kit
 
-> **Status:** a proof project (179 tests, run locally on Node v25.2.1 in headless Google Chrome 156 (fallback; Playwright's bundled Chromium is not installed on this machine)). Tested against a local fake collector and local demo pages only. **NOT run against real GA4 or GTM yet**, and **not used for any client.** See Limits below for what was not verified.
+> **Status:** a proof project (179 tests, run locally on Node v25.2.1 in headless Google Chrome 156). Tested against a local fake collector and local demo pages only. **NOT run against real GA4 or GTM yet**, and **not used for any client.** See Limits below for what was not verified.
 
 A tested starting point for the usual "fix my Google Analytics 4 / Tag Manager tracking" jobs: ecommerce events that are missing or malformed, purchases counted twice, revenue that does not add up, tags that fire before the visitor agreed, personal data in event parameters.
 
@@ -28,7 +28,7 @@ npm run validate-gtm
 npm run audit -- demo                    # starts the shop itself, walks the funnel, prints a markdown report, exit 0
 npm run audit -- demo-broken             # same, exit 1, with every failed check named
 npm run serve                            # the shop on http://127.0.0.1:8790/ to click through yourself
-npm run mutation                         # about @@MUTMIN@@ minutes
+npm run mutation                         # about 10 minutes
 ```
 
 Needs a recent Node (developed and tested on Node v25.2.1 only; other versions are untested). The browser is Playwright's bundled Chromium when installed, otherwise the Google Chrome on the machine (set `TRACKING_KIT_BROWSER=chrome` to prefer Chrome). Local runs for the numbers above used Google Chrome 156.0.8078.76.
@@ -109,7 +109,32 @@ The purchase guard in the good shop (`demo/js/thank-you.js`) records the `transa
 
 The 17 breakages: drop the purchase guard; stop clearing `ecommerce`; purchase value as a string; items without `item_id`; consent default granted; tag manager loaded before consent; value without shipping; an email in an event; skip the `add_shipping_info` push; wrong quantity in `remove_from_cart`; validator blind to email addresses; validator tolerant of duplicate purchases; validator that treats any previous push as an ecommerce reset; emulated tags ignoring consent; external audit allowing POST; container export without the purchase tag; validator ignoring tax and shipping.
 
-@@MUTRESULT@@
+**Result of the last run (2026-10-31, after the final code change): 17 of 17 breakages killed (100%).** The baseline copy passed first. Each result was confirmed by re-running the failing file alone.
+
+| Mutant | Broken | First failing test (the run stops at the first failure, so this is one of possibly several that notice it) |
+|---|---|---|
+| M01 | purchase guard removed | `audit.test.ts` demo audit passes all checks |
+| M02 | no `{ ecommerce: null }` | same |
+| M03 | purchase value as `"$88.09"` | same |
+| M04 | items without `item_id` | same |
+| M05 | consent default grants `analytics_storage` | same |
+| M06 | tag manager loaded before consent | `consent.test.ts` "before any choice ... no tag script and no hit" |
+| M07 | value without shipping | `audit.test.ts` |
+| M08 | email in `add_shipping_info` | `audit.test.ts` |
+| M09 | `add_shipping_info` never pushed | `audit.test.ts` |
+| M10 | wrong quantity in `remove_from_cart` | `audit.test.ts` |
+| M11 | validator blind to emails | `broken.test.ts` PII finding in push and hit |
+| M12 | validator tolerates duplicate purchase | `audit.test.ts` broken-shop audit |
+| M13 | validator accepts any previous ecommerce push as a reset | `validator.test.ts` |
+| M14 | emulated tags ignore consent | `container-emulation.test.ts` built-in consent check |
+| M15 | external mode lets POST through | `audit.test.ts` read-only audit |
+| M16 | container without the purchase tag | `audit.test.ts` |
+| M17 | validator ignores tax and shipping | `validator.test.ts` value-math |
+
+What this does not show: the audit test happens to run first, so it is listed for most rows, but the dedicated test files for each area (funnel, consent, purchase guard, validator, broken, container) also fail for these breakages when run on their own; I did not tabulate that. Two honest notes from getting here:
+
+- An earlier run killed 16 of 17. **M14 survived**: the committed container already requires `analytics_storage` on every tag, so the emulator's own built-in check was never the only thing stopping a hit. I added a test that strips the container's consent settings, and the same mutant is now killed. A mutation score only says the tests notice these 17 changes, not that they notice every possible bug.
+- In that earlier run M06 was first "killed" by a failure in the audit test that did not reproduce (the audit test never fails for this mutant when run alone, because the emulator gates its own tags). The script's confirmation step caught it; M06 is genuinely killed by the consent test.
 
 ## Doing the real run (not done yet)
 
@@ -129,7 +154,8 @@ For a client site the workflow is: `docs/tracking-plan-template.md` first (agree
 - **PII detection is pattern-based.** It finds email addresses, a short list of personal field names, and any values you pass with `--pii`. It does not find names, addresses, phone numbers or ids that are really personal data without help.
 - **External audits see one page load, before any consent choice.** They cannot judge the funnel, the post-consent behaviour or purchase de-duplication. A site on advanced Consent Mode will fail the consent checks by design. Robots rules are not read; use it only on sites you own or are allowed to test. Behaviour against real third-party sites was never exercised (only against a local page standing in for one).
 - **The funnel walk fits only this demo's markup.** Pointing `--walk` at another local app needs new selectors in `src/funnel.ts`.
-- **One browser, one machine.** Headless Google Chrome 156 (fallback; Playwright's bundled Chromium is not installed on this machine) on macOS with Node v25.2.1; the CI file installs Playwright's Chromium on Linux but has not run yet (the repo is not on GitHub). Quiet-period waits (`Harness.quiesce`) are bounded debounces, not fixed sleeps, but a very slow machine could still see late beacons.
+- **One browser, one machine.** Headless Google Chrome 156 on macOS (Playwright's bundled Chromium was not installed on the test machine, so the Chrome fallback was what ran; the bundled Chromium path is untested) with Node v25.2.1; the CI file installs Playwright's Chromium on Linux but has not run yet (the repo is not on GitHub). Quiet-period waits (`Harness.quiesce`) are bounded debounces, not fixed sleeps, but a very slow machine could still see late beacons.
+- **One unexplained slow run.** Once, on a loaded machine, the first consent test hit its 60 second timeout during a mutation baseline. It did not reproduce in later full runs or in four runs in parallel, and I did not find the cause. The request handler now aborts a request instead of hanging if it throws, which is one possible cause, but I cannot say that was it.
 - **Not production code.** No logging framework, no scheduling, no monitoring. Fictional shop and made-up data only.
 
 ## Layout
