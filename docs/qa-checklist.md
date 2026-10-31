@@ -5,7 +5,7 @@ Two parts: what the kit already proves offline, and what only a real run can pro
 ## Part 1: offline (done by `npm test` and `npm run audit`)
 
 - [x] dataLayer shape of the nine ecommerce events, `ecommerce: null` before each push
-- [x] `value` is a number and adds up (items, plus tax and shipping on purchase)
+- [x] `value` is a number and equals the sum of price x quantity of the items (default policy, following Google's reference: tax and shipping are left out and sent in `tax` and `shipping`); the opt-in `items+tax+shipping` policy is also checked but is not Google's guidance
 - [x] `purchase` fires once across reload, back/forward and a repeat visit in the same tab
 - [x] No email or personal field in pushes or in the page URL sent with hits
 - [x] Consent default denied for the four Consent Mode v2 types before any tag; no hits before consent; hits after
@@ -41,7 +41,7 @@ Not covered offline: whether Google accepts the container import, whether GA4 pr
 4. Walk the funnel (open a product, add to cart, view cart, checkout, shipping, payment, place order). For each of the nine events:
    - the event appears in the left timeline with the `ecommerce` object in the Data Layer tab
    - the matching GA4 event tag shows **Tags Fired**
-   - the tag's event parameters show the right `transaction_id`, `value`, `currency`, `tax`, `shipping`
+   - the tag's event parameters show the right `transaction_id`, `value` (items only), `currency`, `tax`, `shipping`
 5. Reload the thank-you page. The timeline must **not** show a second `purchase`.
 6. Repeat with **Reject** (use "Cookie settings" in the footer). No GA4 tag fires; the events still appear in the Data Layer tab.
 7. Repeat with **Analytics only**. GA4 tags fire; ad types stay `Denied`.
@@ -50,7 +50,7 @@ Not covered offline: whether Google accepts the container import, whether GA4 pr
 
 1. Admin > DebugView. Open the demo with GTM preview connected (preview mode sets debug mode), or add the Chrome "Google Analytics Debugger" extension.
 2. Walk the funnel again. Each of the nine events appears in the stream, in order.
-3. Click `purchase`: the parameters list shows `transaction_id`, `value` (number), `currency`, `tax`, `shipping`, and the `items` array with `item_id`, `item_name`, `price`, `quantity`.
+3. Click `purchase`: the parameters list shows `transaction_id`, `value` (a number, items only), `currency`, `tax`, `shipping`, and the `items` array with `item_id`, `item_name`, `price`, `quantity`.
 4. Reload the thank-you page: no second `purchase` in DebugView.
 5. Click any event and look through every parameter and the page location/URL: no email, name or address.
 
@@ -58,7 +58,7 @@ Not covered offline: whether Google accepts the container import, whether GA4 pr
 
 1. Realtime: events arrive with the expected counts.
 2. Admin > Events: the nine events are listed. Mark `purchase` as a key event if it is not already.
-3. Monetization > Ecommerce purchases: the test order shows the expected revenue (check against the **value policy** written in the tracking plan).
+3. Monetization > Ecommerce purchases: the test order shows the expected revenue: the sum of the items (the default policy), so it will be lower than what the shopper paid by the tax and shipping amounts. Check against the **value policy** written in the tracking plan.
 4. Explore > a free-form report with `transaction_id` as the dimension: each id appears once.
 5. Reports > Monetization > Purchase journey: the funnel steps show counts for each step.
 

@@ -8,7 +8,7 @@ Copy this file per client or per site. One row per event. The plan is the contra
 | GA4 property id | G-XXXXXXXXXX (placeholder, replace) |
 | GTM container id | GTM-XXXXXXX (placeholder, replace) |
 | Currency | one ISO 4217 code, for example USD |
-| Purchase `value` policy | items only / items + tax + shipping (pick one, write it here, test against it) |
+| Purchase `value` policy | **items only** (default, follows Google's GA4 events reference: `value` is the sum of price x quantity of the items, and tax and shipping are not included; they go in `tax` and `shipping`). `items+tax+shipping` is available in the kit as an explicit opt-in and is NOT Google's guidance: choose it only if your reporting deliberately differs, and write the reason here. |
 | Consent mode | basic (tags load only after consent) / advanced (cookieless pings while denied) |
 | Plan owner | |
 | Last reviewed | |
@@ -27,7 +27,7 @@ Status values for QA: `not started`, `in dataLayer`, `reaches GA4`, `verified in
 | `begin_checkout` | | Checkout opened | First checkout step load | `currency`, `value`, `items[]` | `coupon` | Checkout template | | not started | Decide: once per session, or every load |
 | `add_shipping_info` | | Shipping step submitted | After a shipping method is chosen | `currency`, `value`, `items[]`, `shipping_tier` | `coupon` | Checkout script | | not started | |
 | `add_payment_info` | | Payment step submitted | After a payment type is chosen | `currency`, `value`, `items[]`, `payment_type` | `coupon` | Checkout script | | not started | Never send card data |
-| `purchase` | | Order confirmed | Confirmation page, once per `transaction_id` | `transaction_id`, `currency`, `value`, `tax`, `shipping`, `items[]` | `coupon` | Confirmation template | | not started | Needs a guard against reload / back / revisit |
+| `purchase` | | Order confirmed | Confirmation page, once per `transaction_id` | `transaction_id`, `currency`, `value` (items only), `tax`, `shipping`, `items[]` | `coupon` | Confirmation template | | not started | `value` excludes tax and shipping (see the policy above). Needs a guard against reload / back / revisit |
 
 ## Item fields
 
