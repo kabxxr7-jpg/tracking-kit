@@ -80,7 +80,16 @@ export class Harness {
     return readFileSync(EMULATOR_PATH, "utf8").replace("__CONTAINER_JSON__", () => JSON.stringify(container));
   }
 
+  /** A route handler that throws leaves its request pending forever, so every failure ends in an abort. */
   private async handle(route: Route): Promise<void> {
+    try {
+      await this.decide(route);
+    } catch {
+      await route.abort("failed").catch(() => {});
+    }
+  }
+
+  private async decide(route: Route): Promise<void> {
     const req = route.request();
     const url = req.url();
     const method = req.method();
@@ -103,7 +112,8 @@ export class Harness {
         const base = parseParams(u.search);
         const body = req.postData();
         const lines = body ? body.split(/\r?\n/).filter(Boolean) : [];
-        const pageUrl = req.frame().url();
+        let pageUrl = "";
+        try { pageUrl = req.frame().url(); } catch { /* the frame is already gone (beacon sent while navigating away) */ }
         const addHit = (params: Record<string, string>) => {
           const hit: Hit = { seq: ++this.seq, page: pageUrl, host: u.hostname, method, url, params };
           this.capture.hits.push(hit);

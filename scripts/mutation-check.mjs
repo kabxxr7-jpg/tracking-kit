@@ -116,16 +116,21 @@ async function main() {
       const target = path.join(dir, m.file);
       writeFileSync(target, m.apply(readFileSync(target, "utf8")));
       const started = Date.now();
-      let r = await run(dir);
-      let status = r.code === 0 ? "SURVIVED" : /(\d+) failed|FAIL /.test(r.out) ? "killed" : "INCONCLUSIVE";
-      let by = status === "killed" ? firstFailure(r.out) : r.code === 0 ? "" : "run crashed or timed out";
-      if (status === "killed") {
+      let status = "INCONCLUSIVE";
+      let by = "";
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        const r = await run(dir);
+        status = r.code === 0 ? "SURVIVED" : /(\d+) failed|FAIL /.test(r.out) ? "killed" : "INCONCLUSIVE";
+        by = status === "killed" ? firstFailure(r.out) : r.code === 0 ? "" : "run crashed or timed out";
+        if (status !== "killed") break;
         // A kill only counts if the failing test file fails again on its own with a real assertion failure,
-        // so a slow machine (timeouts, late beacons) cannot inflate the kill rate.
+        // so a slow machine (timeouts, late beacons) cannot inflate the kill rate. One whole retry is allowed.
         const file = /FAIL\s+(tests\/[^\s>]+)/.exec(r.out)?.[1];
         const again = file ? await run(dir, [file]) : { code: 0, out: "" };
         const reproduced = again.code !== 0 && /FAIL /.test(again.out) && !/timed out/i.test(again.out);
-        if (!reproduced) { status = "NOT-CONFIRMED"; by = `first run failed in ${file ?? "?"} but a second run of that file did not fail by assertion`; }
+        if (reproduced) break;
+        status = "NOT-CONFIRMED";
+        by = `failed in ${file ?? "?"} on both attempts but the failure did not reproduce by assertion`;
       }
       results.push({ ...m, status, by, seconds: Math.round((Date.now() - started) / 1000) });
       console.log(`${status.padEnd(13)} ${m.id}  (${results.at(-1).seconds}s)`);

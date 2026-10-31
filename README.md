@@ -1,6 +1,6 @@
 # tracking-kit
 
-> **Status:** a proof project (@@TESTS@@ tests, run locally on Node @@NODE@@ in headless @@BROWSER@@). Tested against a local fake collector and local demo pages only. **NOT run against real GA4 or GTM yet**, and **not used for any client.** See Limits below for what was not verified.
+> **Status:** a proof project (179 tests, run locally on Node v25.2.1 in headless Google Chrome 156 (fallback; Playwright's bundled Chromium is not installed on this machine)). Tested against a local fake collector and local demo pages only. **NOT run against real GA4 or GTM yet**, and **not used for any client.** See Limits below for what was not verified.
 
 A tested starting point for the usual "fix my Google Analytics 4 / Tag Manager tracking" jobs: ecommerce events that are missing or malformed, purchases counted twice, revenue that does not add up, tags that fire before the visitor agreed, personal data in event parameters.
 
@@ -22,7 +22,7 @@ Everything runs offline. There is no real GA4 property and no real GTM container
 ```bash
 npm install
 npx playwright-core install chromium     # or have Google Chrome installed; the kit falls back to it
-npm test                                 # @@TESTS@@ tests, about 2 minutes (it drives a browser)
+npm test                                 # 179 tests, about 2 minutes (it drives a browser)
 npm run typecheck
 npm run validate-gtm
 npm run audit -- demo                    # starts the shop itself, walks the funnel, prints a markdown report, exit 0
@@ -31,7 +31,7 @@ npm run serve                            # the shop on http://127.0.0.1:8790/ to
 npm run mutation                         # about @@MUTMIN@@ minutes
 ```
 
-Needs a recent Node (developed and tested on Node @@NODE@@ only; other versions are untested). The browser is Playwright's bundled Chromium when installed, otherwise the Google Chrome on the machine (set `TRACKING_KIT_BROWSER=chrome` to prefer Chrome). Local runs for the numbers above used Google Chrome @@CHROME@@.
+Needs a recent Node (developed and tested on Node v25.2.1 only; other versions are untested). The browser is Playwright's bundled Chromium when installed, otherwise the Google Chrome on the machine (set `TRACKING_KIT_BROWSER=chrome` to prefer Chrome). Local runs for the numbers above used Google Chrome 156.0.8078.76.
 
 ### `audit`
 
@@ -87,9 +87,19 @@ The purchase guard in the good shop (`demo/js/thank-you.js`) records the `transa
 
 **Import into a real GTM workspace has not been tested.** The export shapes were written from knowledge of the format, not from a file produced by GTM. If GTM rejects the file, `docs/qa-checklist.md` says what to do.
 
-## What the @@TESTS@@ tests show
+## What the 179 tests show
 
-@@TESTTABLE@@
+| File | Tests | Covers |
+|---|---|---|
+| `funnel.test.ts` | 28 | The good shop, walked once from the list page to the thank-you page. Exact event order (13 pushes for the fixed basket), all nine events with their documented parameters, `{ ecommerce: null }` before every push, item fields, purchase figures (88.09 = 70.50 items + 5.64 tax + 11.95 shipping, recomputed in the test, not taken from the validator), `remove_from_cart` reports exactly the removed line, one hit per event in the same order, the purchase hit's `ep.transaction_id` / `epn.value` / `epn.tax` / `epn.shipping` / `cu` / `pr1`, no email, name or address anywhere in pushes or hit URLs, only 127.0.0.1 and the two intercepted Google hostnames were requested, the validator passes all checks on the run |
+| `consent.test.ts` | 10 | Before any choice: default denied for all four types, banner shown, no tag script, no hit; events still reach the dataLayer; a whole funnel walk without answering the banner sends zero hits; Accept all, Analytics only (`gcs=G101`), Reject (tag manager never requested, shop still works); a stored choice is replayed (default, update, tag manager); withdrawing consent stops hits; events pushed before the answer are not sent later; the validator agrees |
+| `purchase-guard.test.ts` | 8 | Baseline one purchase; reload; five reloads; back then forward; the same thank-you URL again; a genuine second order is still reported; no order in the tab reports nothing; the documented limit (clearing `sessionStorage` lets it fire again) |
+| `validator.test.ts` | 58 | Every check pushed over its edge with synthetic captures: consent default (missing, partial, late), hits before consent (including ad-only grant and withdrawal), `ecommerce: null`, required parameters per event, items, string values, currency, value maths exact to the cent under both policies, duplicate purchase, funnel order, email masking in findings, hit-level checks |
+| `broken.test.ts` | 16 | Raw facts about `demo-broken/` (hits on first load, two purchases, `"$88.09"`, no `item_id`, no reset, email in push and URL) and that each bug is reported by the right check with a useful message, while the checks that are not broken still pass |
+| `container-emulation.test.ts` | 5 | The container export decides what is sent: no purchase tag means no purchase hit, a wrong variable path loses the transaction id, a tag needing `ad_storage` stays silent for an analytics-only visitor, the built-in analytics consent check, and all nine events + the placeholder ids appear in hits |
+| `gtm-validate.test.ts` | 29 | The committed export passes; counts; a tag and a trigger for each of the nine events; only placeholder ids; 17 ways of breaking an export (bad version, real-looking ids, missing tag, unknown trigger, duplicates, unknown variable, bad parameter type, missing fingerprint, ...) each rejected; warnings for missing consent settings and unused triggers |
+| `policy.test.ts` | 14 | The request policy as a pure function: local mode serves/records/blocks, external mode blocks writes and private addresses and never forwards analytics hits |
+| `audit.test.ts` | 11 | `runAudit` on both demos (counts, markdown, exact list of failed checks for the broken shop), the value-policy and `--pii` options, refusal of non-http and `--walk` on external hosts, a read-only audit of a page that tries to POST, reach loopback, send a beacon and wait for a click (the server saw only the one GET; nothing was clicked), and the command line exit codes 0, 1 and 2 |
 
 "Killed" in the mutation section below means a test failed; the test files do not call a real Google service.
 
@@ -119,7 +129,7 @@ For a client site the workflow is: `docs/tracking-plan-template.md` first (agree
 - **PII detection is pattern-based.** It finds email addresses, a short list of personal field names, and any values you pass with `--pii`. It does not find names, addresses, phone numbers or ids that are really personal data without help.
 - **External audits see one page load, before any consent choice.** They cannot judge the funnel, the post-consent behaviour or purchase de-duplication. A site on advanced Consent Mode will fail the consent checks by design. Robots rules are not read; use it only on sites you own or are allowed to test. Behaviour against real third-party sites was never exercised (only against a local page standing in for one).
 - **The funnel walk fits only this demo's markup.** Pointing `--walk` at another local app needs new selectors in `src/funnel.ts`.
-- **One browser, one machine.** Headless @@BROWSER@@ on macOS with Node @@NODE@@; the CI file installs Playwright's Chromium on Linux but has not run yet (the repo is not on GitHub). Quiet-period waits (`Harness.quiesce`) are bounded debounces, not fixed sleeps, but a very slow machine could still see late beacons.
+- **One browser, one machine.** Headless Google Chrome 156 (fallback; Playwright's bundled Chromium is not installed on this machine) on macOS with Node v25.2.1; the CI file installs Playwright's Chromium on Linux but has not run yet (the repo is not on GitHub). Quiet-period waits (`Harness.quiesce`) are bounded debounces, not fixed sleeps, but a very slow machine could still see late beacons.
 - **Not production code.** No logging framework, no scheduling, no monitoring. Fictional shop and made-up data only.
 
 ## Layout
