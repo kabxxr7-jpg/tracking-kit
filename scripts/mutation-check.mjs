@@ -2,7 +2,7 @@
 // run the test suite against each broken copy, and report how many breakages the tests notice.
 // Mutants run in copies under .mutation-work/ (git-ignored), never in the real tree.
 //
-//   node scripts/mutation-check.mjs [--jobs 3] [--only <id,id>] [--keep]
+//   node scripts/mutation-check.mjs [--jobs 2] [--only <id,id>] [--keep]
 //
 // Exit code: 0 when every mutant was killed, 1 when at least one survived or a run was inconclusive.
 import { spawn } from "node:child_process";
@@ -16,7 +16,7 @@ const COPY = ["src", "tests", "demo", "demo-broken", "gtm", "package.json", "tsc
 
 const args = process.argv.slice(2);
 const opt = (name, fallback) => { const i = args.indexOf(name); return i === -1 ? fallback : args[i + 1]; };
-const JOBS = Number(opt("--jobs", "3"));
+const JOBS = Number(opt("--jobs", "2"));
 const ONLY = opt("--only", "")?.split(",").filter(Boolean) ?? [];
 const KEEP = args.includes("--keep");
 
@@ -102,7 +102,8 @@ async function main() {
   // Baseline: the unmodified copy must pass, otherwise "killed" would mean nothing.
   console.log("baseline: running the suite on an unmodified copy ...");
   const baseDir = prepare("baseline");
-  const base = await run(baseDir);
+  let base = await run(baseDir);
+  if (base.code !== 0) { console.log("baseline failed once; retrying once to rule out a slow machine ..."); base = await run(baseDir); }
   if (base.code !== 0) { console.error(base.out.split("\n").slice(-40).join("\n")); console.error("baseline failed; mutation results would be meaningless."); process.exit(2); }
   console.log("baseline passed.\n");
 
@@ -115,11 +116,19 @@ async function main() {
       const target = path.join(dir, m.file);
       writeFileSync(target, m.apply(readFileSync(target, "utf8")));
       const started = Date.now();
-      const r = await run(dir);
-      const failed = r.code !== 0 && /(\d+) failed|FAIL /.test(r.out);
-      const status = r.code === 0 ? "SURVIVED" : failed ? "killed" : "INCONCLUSIVE";
-      results.push({ ...m, status, by: failed ? firstFailure(r.out) : r.code === 0 ? "" : "run crashed or timed out", seconds: Math.round((Date.now() - started) / 1000) });
-      console.log(`${status.padEnd(12)} ${m.id}  (${results.at(-1).seconds}s)`);
+      let r = await run(dir);
+      let status = r.code === 0 ? "SURVIVED" : /(\d+) failed|FAIL /.test(r.out) ? "killed" : "INCONCLUSIVE";
+      let by = status === "killed" ? firstFailure(r.out) : r.code === 0 ? "" : "run crashed or timed out";
+      if (status === "killed") {
+        // A kill only counts if the failing test file fails again on its own with a real assertion failure,
+        // so a slow machine (timeouts, late beacons) cannot inflate the kill rate.
+        const file = /FAIL\s+(tests\/[^\s>]+)/.exec(r.out)?.[1];
+        const again = file ? await run(dir, [file]) : { code: 0, out: "" };
+        const reproduced = again.code !== 0 && /FAIL /.test(again.out) && !/timed out/i.test(again.out);
+        if (!reproduced) { status = "NOT-CONFIRMED"; by = `first run failed in ${file ?? "?"} but a second run of that file did not fail by assertion`; }
+      }
+      results.push({ ...m, status, by, seconds: Math.round((Date.now() - started) / 1000) });
+      console.log(`${status.padEnd(13)} ${m.id}  (${results.at(-1).seconds}s)`);
       if (!KEEP) rmSync(dir, { recursive: true, force: true });
     }
   }

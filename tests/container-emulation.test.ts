@@ -48,6 +48,24 @@ describe("the container export drives what is sent (through the GTM emulator)", 
     expect(hitsFor(s.capture, "add_to_cart").length).toBeGreaterThan(0);
   });
 
+  it("tags with no consent settings of their own still stop sending once analytics consent is withdrawn (built-in check)", async () => {
+    const container = loadContainer() as any;
+    for (const t of container.containerVersion.tag) delete t.consentSettings;
+    const s = await newSession(env, env.demo.url, { storedConsent: "all", container });
+    await s.page.goto(env.demo.url + "/product.html?id=NW-HERB-3");
+    await s.harness.quiesce(300);
+    await s.page.click("#add-to-cart");
+    await s.harness.quiesce(300);
+    expect(hitsFor(s.capture, "add_to_cart")).toHaveLength(1);
+    await s.page.click("#cookie-settings");
+    await s.page.click("#consent-reject");
+    await s.harness.quiesce(300);
+    const before = s.capture.hits.length;
+    await s.page.click("#add-to-cart");
+    await s.harness.quiesce(300);
+    expect(s.capture.hits).toHaveLength(before);
+  });
+
   it("the committed container sends all nine events with the committed placeholders", async () => {
     const s = await runWith(() => {});
     const names = new Set(s.capture.hits.map((h) => h.params.en));
