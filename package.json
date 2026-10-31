@@ -1,0 +1,24 @@
+{
+  "name": "tracking-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Offline-verifiable GA4 + Google Tag Manager tracking kit: demo store, Consent Mode v2, container export, validator, audit CLI.",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "serve": "tsx src/cli.ts serve",
+    "audit": "tsx src/cli.ts audit",
+    "validate-gtm": "tsx src/cli.ts validate-gtm",
+    "mutation": "node scripts/mutation-check.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.64.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.12"
+  }
+}
