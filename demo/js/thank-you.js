@@ -23,7 +23,8 @@
 
   NW.track.push("purchase", {
     transaction_id: order.transaction_id,
-    value: order.value_cents / 100,
+    // Google's reference: value is the sum of price x quantity of the items; tax and shipping go in their own parameters.
+    value: order.subtotal_cents / 100,
     tax: order.tax_cents / 100,
     shipping: order.shipping_cents / 100,
     currency: order.currency,

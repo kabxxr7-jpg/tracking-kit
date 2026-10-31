@@ -40,15 +40,15 @@ export function classify(rawUrl: string, method: string, mode: Mode, targetHost:
 
   if (TAG_HOST.test(u.hostname)) {
     if (mode === "local") return /^\/gtm\.js$/.test(u.pathname) ? { kind: "emulate-gtm" } : { kind: "stub-script" };
-    return m === "GET" || m === "HEAD" ? { kind: "allow" } : { kind: "block", reason: `${m} to a tag host blocked (read-only mode)` };
+    return m === "GET" || m === "HEAD" ? { kind: "allow" } : { kind: "block", reason: `${m} to a tag host blocked (GET-only mode)` };
   }
 
   if (mode === "local") {
     return isLoopbackHost(u.hostname) ? { kind: "allow" } : { kind: "block", reason: "non-local host blocked (offline mode)" };
   }
 
-  // external: read-only page load
-  if (m !== "GET" && m !== "HEAD" && m !== "OPTIONS") return { kind: "block", reason: `${m} blocked (read-only mode)` };
+  // external: GET-only page load (GETs can still have side effects on the site, so this is not a promise of zero effect)
+  if (m !== "GET" && m !== "HEAD" && m !== "OPTIONS") return { kind: "block", reason: `${m} blocked (GET-only mode)` };
   if (isPrivateHost(u.hostname) && u.hostname.toLowerCase() !== targetHost.toLowerCase()) {
     return { kind: "block", reason: "request to a private or loopback address blocked" };
   }

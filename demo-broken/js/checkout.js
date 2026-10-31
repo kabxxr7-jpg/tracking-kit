@@ -80,6 +80,7 @@
     var order = {
       transaction_id: transactionId,
       currency: NW.track.currency,
+      subtotal_cents: t.subtotal,
       value_cents: t.total,
       tax_cents: t.tax,
       shipping_cents: t.shipping,

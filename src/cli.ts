@@ -12,12 +12,15 @@ const USAGE = `tracking-kit
   audit <demo|demo-broken|URL> [options]     record dataLayer pushes and analytics hits, print a markdown checklist
       --walk                                 walk the demo funnel (local/loopback targets only)
       --container <file>                     container export to emulate (local targets), default gtm/container.json
-      --value-policy items|items+tax+shipping   what a purchase value must equal (default items+tax+shipping)
+      --value-policy items|items+tax+shipping   what a purchase value must equal. Default "items" (sum of price x quantity,
+                                             tax and shipping left out, as Google's reference says). "items+tax+shipping" is NOT Google's
+                                             guidance: use it only if your reporting deliberately differs
       --pii <text>                           a personal value that must not appear anywhere (repeatable)
   validate-gtm [file] [--allow-real-ids]     structural check of a GTM container export
 
 Exit codes: 0 all checks passed, 1 a check failed, 2 bad usage, 3 unexpected error.
-External URLs get ONE read-only page load: no clicks, no form input, non-GET requests blocked, analytics hits never sent.
+External URLs get ONE GET-only page load: no clicks, no form input, non-GET requests blocked, analytics hits never sent.
+(GET requests made by a page can still have side effects on the site, for example a tracking pixel or a stateful URL.)
 Only point it at sites you own or are allowed to test.`;
 
 async function main(argv: string[]): Promise<number> {

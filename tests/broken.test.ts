@@ -40,8 +40,8 @@ describe("demo-broken really has the classic bugs (facts from the raw capture)",
     expect(p[0]!.ecommerce.transaction_id).toBe(p[1]!.ecommerce.transaction_id);
     expect(hitsFor(s.capture, "purchase")).toHaveLength(2);
   });
-  it("value is the string \"$88.09\"", () => {
-    expect(ecomPushes(s.capture).find((e) => e.name === "purchase")!.ecommerce.value).toBe("$88.09");
+  it("value is the string \"$70.50\"", () => {
+    expect(ecomPushes(s.capture).find((e) => e.name === "purchase")!.ecommerce.value).toBe("$70.50");
   });
   it("items have no item_id", () => {
     expect(ecomPushes(s.capture).every((e) => e.ecommerce.items.every((i: any) => i.item_id === undefined && typeof i.item_name === "string"))).toBe(true);
@@ -61,10 +61,10 @@ describe("the kit validator catches each bug", () => {
     ["no-hits-before-consent", /before analytics consent was granted/],
     ["ecommerce-cleared", /Not cleared before/],
     ["items-valid", /item_id/],
-    ["numeric-values", /value is string "\$88\.09"/],
+    ["numeric-values", /value is string "\$70\.50"/],
     ["purchase-once", /Duplicate purchase: NW-\d+ x2/],
     ["no-pii", /user_email/],
-    ["hit-params", /sent as text: \$88\.09/]
+    ["hit-params", /sent as text: \$70\.50/]
   ])("%s fails with a useful message", (id, message) => {
     expect(byId(id).status).toBe("fail");
     expect(byId(id).detail).toMatch(message);

@@ -29,7 +29,7 @@ export interface AuditOutcome {
 
 export class UsageError extends Error {}
 
-const USER_AGENT = "tracking-kit-audit/0.1 (read-only page load)";
+const USER_AGENT = "tracking-kit-audit/0.1 (GET-only page load)";
 
 export async function runAudit(opts: AuditOptions): Promise<AuditOutcome> {
   let server: RunningServer | null = null;
@@ -49,7 +49,7 @@ export async function runAudit(opts: AuditOptions): Promise<AuditOutcome> {
   const mode: Mode = isLoopbackHost(host) ? "local" : "external";
   if (walk && mode === "external") {
     await server?.close();
-    throw new UsageError("--walk clicks through a site, so it is only allowed for local (loopback) targets. External sites get one read-only page load.");
+    throw new UsageError("--walk clicks through a site, so it is only allowed for local (loopback) targets. External sites get one GET-only page load.");
   }
 
   const browser = await launchBrowser({ args: opts.chromiumArgs ?? [] });
@@ -108,7 +108,7 @@ export function renderMarkdown(url: string, mode: Mode, walked: boolean, results
   lines.push(
     mode === "local"
       ? "- Mode: local. Google Tag Manager is emulated from `gtm/container.json`, every request to Google hosts is intercepted, nothing leaves this machine."
-      : "- Mode: external, read-only. One page load, no clicks, no form input, every non-GET request blocked, every analytics hit recorded and not sent."
+      : "- Mode: external, GET-only. One page load, no clicks, no form input, every non-GET request blocked, every analytics hit recorded and not sent. (GET requests made by the page can still have side effects on that site.)"
   );
   if (walked) lines.push("- Scenario: scripted funnel walk of the demo (consent accepted on the first page), then a reload of the thank-you page.");
   lines.push("", "| Check | Result | Detail |", "|---|---|---|");

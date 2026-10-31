@@ -20,7 +20,7 @@
     user_email: contact ? contact.email : undefined,
     ecommerce: {
       transaction_id: order.transaction_id,
-      value: "$" + (order.value_cents / 100).toFixed(2),
+      value: "$" + (order.subtotal_cents / 100).toFixed(2),
       tax: order.tax_cents / 100,
       shipping: order.shipping_cents / 100,
       currency: order.currency,

@@ -32,6 +32,7 @@ const REQUIRED: Record<EcommerceEvent, string[]> = {
 const QUANTITY_REQUIRED = new Set<string>(["add_to_cart", "remove_from_cart", "view_cart", "begin_checkout", "add_shipping_info", "add_payment_info", "purchase"]);
 
 export interface ValidateOptions {
+  /** "items" (default, Google's reference): value = sum of price x quantity. "items+tax+shipping" is an opt-in that is NOT Google's guidance. */
   valuePolicy?: ValuePolicy;
   /** True when the harness emulated GTM, so hits are expected for every event pushed after consent. */
   expectHits?: boolean;
@@ -117,7 +118,7 @@ function decode(s: string): string {
 }
 
 export function validate(capture: Capture, options: ValidateOptions = {}): CheckResult[] {
-  const policy: ValuePolicy = options.valuePolicy ?? "items+tax+shipping";
+  const policy: ValuePolicy = options.valuePolicy ?? "items";
   const events = ecommerceEvents(capture);
   const cmds = consentCommands(capture);
   const results: CheckResult[] = [];
@@ -263,9 +264,9 @@ export function validate(capture: Capture, options: ValidateOptions = {}): Check
   // 8. value math ---------------------------------------------------------------------------------
   {
     const id = "value-math";
-    const title = policy === "items+tax+shipping"
-      ? "value equals the sum of items (purchase: plus tax and shipping)"
-      : "value equals the sum of items price x quantity (tax and shipping excluded)";
+    const title = policy === "items"
+      ? "value equals the sum of items price x quantity (tax and shipping left out, as Google's reference says)"
+      : "value equals the sum of items plus tax and shipping on purchase (opt-in policy, NOT Google's guidance)";
     const checkable = events.filter((e) => typeof e.ecommerce.value === "number" && Array.isArray(e.ecommerce.items) && e.ecommerce.items.length > 0);
     if (checkable.length === 0) results.push(result(id, title, "skip", "No events with a numeric value and items."));
     else {
@@ -286,7 +287,15 @@ export function validate(capture: Capture, options: ValidateOptions = {}): Check
           expected += tax + ship;
         }
         const actual = cents(e.ecommerce.value as number);
-        if (actual !== expected) problems.push(`${label(e)} value ${(actual / 100).toFixed(2)}, expected ${(expected / 100).toFixed(2)}`);
+        if (actual !== expected) {
+          let hint = "";
+          if (e.name === "purchase" && policy === "items") {
+            const tax = typeof e.ecommerce.tax === "number" ? cents(e.ecommerce.tax) : 0;
+            const ship = typeof e.ecommerce.shipping === "number" ? cents(e.ecommerce.shipping) : 0;
+            if (actual === expected + tax + ship && tax + ship > 0) hint = " (value includes tax and/or shipping; Google says to leave them out)";
+          }
+          problems.push(`${label(e)} value ${(actual / 100).toFixed(2)}, expected ${(expected / 100).toFixed(2)}${hint}`);
+        }
       }
       results.push(problems.length ? result(id, title, "fail", joined(problems)) : result(id, title, "pass", `${checkable.length} event(s) add up.`));
     }

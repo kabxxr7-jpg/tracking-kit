@@ -31,7 +31,7 @@ describe("request policy, local mode (offline: nothing may leave the machine)", 
   });
 });
 
-describe("request policy, external mode (read-only page load)", () => {
+describe("request policy, external mode (GET-only page load)", () => {
   it("allows plain GETs", () => expect(external("https://shop.example.test/products")).toBe("allow"));
   it("blocks POST, PUT, PATCH and DELETE", () => {
     for (const m of ["POST", "PUT", "PATCH", "DELETE"]) expect(external("https://shop.example.test/api/cart", m), m).toBe("block");

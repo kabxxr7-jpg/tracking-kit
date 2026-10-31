@@ -17,8 +17,8 @@ export interface WalkResult {
   transactionId: string;
   email: string;
   thankYouUrl: string;
-  /** Expected purchase figures in dollars for the fixed basket the walk builds. */
-  expected: { subtotal: number; tax: number; shipping: number; value: number };
+  /** Expected purchase figures in dollars for the fixed basket the walk builds. `value` is items only (Google's rule); `total` is what the shopper pays. */
+  expected: { subtotal: number; tax: number; shipping: number; value: number; total: number };
 }
 
 const BASKET = { a: "NW-PLANT-12", aQty: "2", b: "NW-GLAZE-20", c: "NW-TROWEL" };
@@ -80,6 +80,6 @@ export async function walkFunnel(page: Page, harness: Harness, baseUrl: string, 
     transactionId,
     email,
     thankYouUrl: page.url(),
-    expected: { subtotal, tax, shipping: ship, value: Math.round((subtotal + tax + ship) * 100) / 100 }
+    expected: { subtotal, tax, shipping: ship, value: subtotal, total: Math.round((subtotal + tax + ship) * 100) / 100 }
   };
 }

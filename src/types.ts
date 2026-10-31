@@ -45,4 +45,9 @@ export interface CheckResult {
   detail: string;
 }
 
-export type ValuePolicy = "items+tax+shipping" | "items";
+/**
+ * What a purchase `value` must equal.
+ * "items" (default): sum of price x quantity, tax and shipping left out, following Google's GA4 events reference.
+ * "items+tax+shipping": opt-in, NOT Google's guidance; only for a site whose reporting deliberately differs.
+ */
+export type ValuePolicy = "items" | "items+tax+shipping";

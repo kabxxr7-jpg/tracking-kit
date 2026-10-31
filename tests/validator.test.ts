@@ -159,10 +159,34 @@ describe("numeric-values and currency", () => {
 describe("value-math", () => {
   const purchase = (value: number, tax = 1.6, shipping = 4.95) =>
     new Builder().event("purchase", { transaction_id: "T", currency: "USD", value, tax, shipping, items: [item()] });
-  it("purchase: items + tax + shipping passes (20 + 1.6 + 4.95 = 26.55)", () => expect(status(purchase(26.55), "value-math")).toBe("pass"));
-  it("purchase: value without shipping fails under the default policy", () => expect(detail(purchase(21.6), "value-math")).toContain("expected 26.55"));
-  it("purchase: value of items only passes under the items policy", () => expect(status(purchase(20), "value-math", { valuePolicy: "items" })).toBe("pass"));
-  it("purchase: items + tax + shipping fails under the items policy", () => expect(status(purchase(26.55), "value-math", { valuePolicy: "items" })).toBe("fail"));
+  // Default policy = Google's reference: value is the sum of price x quantity, tax and shipping are NOT included.
+  it("default policy: value of items only passes (20 with tax 1.60 and shipping 4.95 kept in their own parameters)", () => {
+    expect(status(purchase(20), "value-math")).toBe("pass");
+    expect(validate(purchase(20).c).find((r) => r.id === "value-math")!.title).toContain("Google's reference");
+  });
+  it("default policy: value that includes tax and shipping fails, and the message says Google leaves them out", () => {
+    const d = detail(purchase(26.55), "value-math");
+    expect(d).toContain("value 26.55, expected 20.00");
+    expect(d).toContain("Google says to leave them out");
+  });
+  it("default policy: value that includes only shipping fails too", () => expect(status(purchase(24.95), "value-math")).toBe("fail"));
+  it("explicit 'items' policy behaves like the default", () => {
+    expect(status(purchase(20), "value-math", { valuePolicy: "items" })).toBe("pass");
+    expect(status(purchase(26.55), "value-math", { valuePolicy: "items" })).toBe("fail");
+  });
+  // Opt-in policy, NOT Google's guidance.
+  it("opt-in items+tax+shipping policy: 20 + 1.60 + 4.95 = 26.55 passes and its title says it is not Google's guidance", () => {
+    expect(status(purchase(26.55), "value-math", { valuePolicy: "items+tax+shipping" })).toBe("pass");
+    expect(validate(purchase(26.55).c, { valuePolicy: "items+tax+shipping" }).find((r) => r.id === "value-math")!.title).toContain("NOT Google's guidance");
+  });
+  it("opt-in items+tax+shipping policy: value of items only fails and names the expected figure", () => {
+    expect(detail(purchase(20), "value-math", { valuePolicy: "items+tax+shipping" })).toContain("expected 26.55");
+  });
+  it("the policy only changes purchase: cart-stage events are items only under both policies", () => {
+    const b = new Builder().event("begin_checkout", { currency: "USD", value: 26.55, items: [item()] });
+    expect(status(b, "value-math")).toBe("fail");
+    expect(status(b, "value-math", { valuePolicy: "items+tax+shipping" })).toBe("fail");
+  });
   it("is exact to the cent (no float drift: 0.1 x 3)", () => {
     const b = new Builder().event("add_to_cart", { currency: "USD", value: 0.3, items: [item({ price: 0.1, quantity: 3 })] });
     expect(status(b, "value-math")).toBe("pass");

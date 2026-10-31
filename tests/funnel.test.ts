@@ -73,13 +73,13 @@ describe("demo store funnel (dataLayer)", () => {
     }
   });
 
-  it("purchase reports the right transaction, currency and amounts", () => {
+  it("purchase reports the right transaction, currency and amounts (value 70.50 = items only)", () => {
     const [p] = ecomPushes(s.capture).filter((e) => e.name === "purchase");
     expect(p!.ecommerce.transaction_id).toBe(walk.transactionId);
     expect(p!.ecommerce.currency).toBe("USD");
     expect(p!.ecommerce.tax).toBe(5.64);
     expect(p!.ecommerce.shipping).toBe(11.95);
-    expect(p!.ecommerce.value).toBe(88.09);
+    expect(p!.ecommerce.value).toBe(70.5);
     expect(p!.ecommerce.items.map((i: any) => [i.item_id, i.quantity, i.price])).toEqual([
       ["NW-PLANT-12", 2, 18],
       ["NW-GLAZE-20", 1, 34.5]
@@ -95,12 +95,15 @@ describe("demo store funnel (dataLayer)", () => {
     expect(removed.ecommerce.value).toBe(31.9);
   });
 
-  it("purchase value equals the sum of items plus tax plus shipping, computed independently", () => {
+  it("purchase value is the sum of price x quantity of the items only; tax and shipping are separate parameters (computed independently)", () => {
     const [p] = ecomPushes(s.capture).filter((e) => e.name === "purchase");
     const items = p!.ecommerce.items as Array<{ price: number; quantity: number }>;
     const itemsCents = items.reduce((sum, i) => sum + cents(i.price) * i.quantity, 0);
-    expect(cents(p!.ecommerce.value)).toBe(itemsCents + cents(p!.ecommerce.tax) + cents(p!.ecommerce.shipping));
+    expect(cents(p!.ecommerce.value)).toBe(itemsCents);
     expect(p!.ecommerce.value).toBe(walk.expected.value);
+    // what the shopper pays is still value + tax + shipping, and is not what is reported as value
+    expect(cents(p!.ecommerce.value) + cents(p!.ecommerce.tax) + cents(p!.ecommerce.shipping)).toBe(cents(walk.expected.total));
+    expect(walk.expected.total).toBe(88.09);
   });
 
   it("cart-stage events use the items subtotal as value", () => {
@@ -143,7 +146,7 @@ describe("demo store funnel (requests to the fake collector)", () => {
     expect(h!.host).toBe("www.google-analytics.com");
     expect(h!.params.tid).toBe("G-XXXXXXXXXX");
     expect(h!.params["ep.transaction_id"]).toBe(walk.transactionId);
-    expect(h!.params["epn.value"]).toBe("88.09");
+    expect(h!.params["epn.value"]).toBe("70.5");
     expect(h!.params["epn.tax"]).toBe("5.64");
     expect(h!.params["epn.shipping"]).toBe("11.95");
     expect(h!.params.cu).toBe("USD");

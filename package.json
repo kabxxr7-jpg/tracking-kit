@@ -10,7 +10,8 @@
     "serve": "tsx src/cli.ts serve",
     "audit": "tsx src/cli.ts audit",
     "validate-gtm": "tsx src/cli.ts validate-gtm",
-    "mutation": "node scripts/mutation-check.mjs"
+    "mutation": "node scripts/mutation-check.mjs",
+    "mutation:selftest": "node scripts/mutation-check.mjs --selftest"
   },
   "dependencies": {
     "playwright-core": "^1.64.1"

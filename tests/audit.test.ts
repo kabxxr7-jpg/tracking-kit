@@ -30,9 +30,17 @@ describe("audit against the local demos", () => {
     expect(out.markdown).toContain("purchase x2");
   });
 
-  it("the value policy option changes the verdict: 'items' makes the demo's purchase value wrong", async () => {
-    const out = await runAudit({ target: "demo", valuePolicy: "items" });
-    expect(out.results.find((r) => r.id === "value-math")!.status).toBe("fail");
+  it("the value policy option changes the verdict: the opt-in items+tax+shipping policy (not Google's guidance) fails the demo", async () => {
+    const out = await runAudit({ target: "demo", valuePolicy: "items+tax+shipping" });
+    const r = out.results.find((x) => x.id === "value-math")!;
+    expect(r.status).toBe("fail");
+    expect(r.detail).toContain("expected 88.09");
+    expect(r.detail).toContain("value 70.50");
+    expect(out.markdown).toContain("NOT Google's guidance");
+  });
+  it("by default the audit uses Google's rule (items only) and says so in the report", async () => {
+    const out = await runAudit({ target: "demo" });
+    expect(out.results.find((x) => x.id === "value-math")!.title).toContain("Google's reference");
   });
 
   it("a supplied personal value is searched for in everything captured", async () => {
@@ -52,7 +60,7 @@ describe("audit refuses unsafe or unknown targets", () => {
   });
 });
 
-describe("audit of an external-looking site is read-only", () => {
+describe("audit of an external-looking site is GET-only", () => {
   let site: RunningServer;
   let port: number;
   beforeAll(async () => {
@@ -79,7 +87,7 @@ describe("audit of an external-looking site is read-only", () => {
     // nothing was clicked
     expect(out.capture.pushes.some((p) => JSON.stringify(p.data).includes("clicked_by_audit"))).toBe(false);
     // and the report says what it saw
-    expect(out.markdown).toContain("Mode: external, read-only");
+    expect(out.markdown).toContain("Mode: external, GET-only");
     expect(out.results.find((r) => r.id === "consent-default")!.status).toBe("fail");
     expect(out.results.find((r) => r.id === "no-hits-before-consent")!.status).toBe("fail");
     expect(out.results.some((r) => r.id === "hits-match-events")).toBe(false);
