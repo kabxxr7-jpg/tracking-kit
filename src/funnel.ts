@@ -37,7 +37,7 @@ export async function walkFunnel(page: Page, harness: Harness, baseUrl: string, 
     await settle();
   }
 
-  // two Terracotta planters, one Glazed pot, one trowel (removed again in the cart)
+  // two Terracotta planters, one Glazed pot, two trowels (the trowels are removed again in the cart)
   const add = async (id: string, qty: string) => {
     await page.goto(`${baseUrl}/product.html?id=${id}`);
     await page.waitForSelector("#add-to-cart");
@@ -49,7 +49,7 @@ export async function walkFunnel(page: Page, harness: Harness, baseUrl: string, 
   };
   await add(BASKET.a, BASKET.aQty);
   await add(BASKET.b, "1");
-  await add(BASKET.c, "1");
+  await add(BASKET.c, "2");
 
   await page.click("#go-to-cart");
   await page.waitForSelector("#cart-table");

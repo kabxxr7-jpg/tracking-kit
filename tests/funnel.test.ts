@@ -86,6 +86,15 @@ describe("demo store funnel (dataLayer)", () => {
     ]);
   });
 
+  it("view_cart lists the whole basket and remove_from_cart reports exactly the removed line", () => {
+    const cart = ecomPushes(s.capture).find((e) => e.name === "view_cart")!;
+    expect(cart.ecommerce.items.map((i: any) => [i.item_id, i.quantity])).toEqual([["NW-PLANT-12", 2], ["NW-GLAZE-20", 1], ["NW-TROWEL", 2]]);
+    expect(cart.ecommerce.value).toBe(102.4);
+    const removed = ecomPushes(s.capture).find((e) => e.name === "remove_from_cart")!;
+    expect(removed.ecommerce.items.map((i: any) => [i.item_id, i.quantity, i.price])).toEqual([["NW-TROWEL", 2, 15.95]]);
+    expect(removed.ecommerce.value).toBe(31.9);
+  });
+
   it("purchase value equals the sum of items plus tax plus shipping, computed independently", () => {
     const [p] = ecomPushes(s.capture).filter((e) => e.name === "purchase");
     const items = p!.ecommerce.items as Array<{ price: number; quantity: number }>;
