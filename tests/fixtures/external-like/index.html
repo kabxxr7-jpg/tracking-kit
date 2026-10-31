@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>External-like fixture</title>
+<script>
+  // A page that behaves badly on purpose: it never declares consent, pushes an event, tries to write to its
+  // own origin, tries to reach a loopback address, and sends an analytics beacon on load.
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ ecommerce: null });
+  window.dataLayer.push({ event: "view_item", ecommerce: { currency: "USD", value: 10, items: [{ item_id: "X1", item_name: "Thing", price: 10, quantity: 1 }] } });
+  fetch("/write", { method: "POST", body: "x=1" }).catch(function () {});
+  fetch("http://127.0.0.1:1/internal").catch(function () {});
+  new Image().src = "https://www.google-analytics.com/g/collect?v=2&tid=G-XXXXXXXXXX&en=page_view";
+</script>
+</head>
+<body>
+<button id="buy" onclick="window.__clicked = true">Buy</button>
+<script>document.getElementById("buy").addEventListener("click", function () { window.dataLayer.push({ event: "clicked_by_audit" }); });</script>
+</body>
+</html>

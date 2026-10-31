@@ -15,7 +15,6 @@
   // BUG 6: there is no purchase guard, so every reload or back/forward reports the same transaction again.
   // BUG 7: value is a formatted string with a currency symbol instead of a number.
   // BUG 8: the shopper's email address is pushed as a top-level field next to the event.
-  window.dataLayer.push({ ecommerce: null }); // (cleared here only so this bug is isolated from BUG 3)
   window.dataLayer.push({
     event: "purchase",
     user_email: contact ? contact.email : undefined,
